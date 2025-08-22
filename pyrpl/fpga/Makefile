@@ -15,7 +15,7 @@ LOG=>> fpga.log 2>&1
 # Vivado from Xilinx provides IP handling, FPGA compilation
 # hsi (hardware software interface) provides software integration
 # both tools are run in batch mode with an option to avoid log/journal files
-VIVADO = vivado -nolog -nojournal -mode batch
+VIVADO = D:/Vivado_2015.4/Vivado/2015.4/bin/vivado -nolog -nojournal -mode batch
 
 all: clean $(FPGA_BIN) postclean
 

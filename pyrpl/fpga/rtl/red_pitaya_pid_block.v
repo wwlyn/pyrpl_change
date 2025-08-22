@@ -66,7 +66,7 @@ module red_pitaya_pid_block #(
    parameter     PSR = 12         ,
    parameter     ISR = 32         ,//official redpitaya: 18
    parameter     DSR = 10         ,
-   parameter     GAINBITS = 24    ,
+   parameter     GAINBITS = 30    ,
    parameter     DERIVATIVE = 0   , //disables differential gain if 0
    
    //parameters for input pre-filter
@@ -97,7 +97,7 @@ module red_pitaya_pid_block #(
 );
 
 reg signed [ 14-1: 0] set_sp;   // set point
-reg signed [ 16-1: 0] set_ival;   // integral value to set
+reg signed [ 14-1: 0] set_ival;   // integral value to set
 reg            ival_write;
 reg [  3-1: 0] pause_pid_on_sync;  // register to specify which gains (P, I, and/or D) are paused during active sync signal
 reg enable_differential_mode;  // register to specify which gains (P, I, and/or D) are paused during active sync signal
@@ -132,7 +132,7 @@ always @(posedge clk_i) begin
    end
    else begin
       if (wen) begin
-         if (addr==16'h100)   set_ival <= wdata[16-1:0];
+         if (addr==16'h100)   set_ival <= wdata[14-1:0];
          if (addr==16'h104)   set_sp  <= wdata[14-1:0];
          if (addr==16'h108)   set_kp  <= wdata[GAINBITS-1:0];
          if (addr==16'h10C)   set_ki  <= wdata[GAINBITS-1:0];
@@ -213,18 +213,26 @@ assign diff_dat_o = dat_i_filtered;
 //  Proportional part - 1 cycle delay
 
 reg signed  [15+GAINBITS-PSR-1: 0] kp_reg        ;
+reg signed  [15+GAINBITS-PSR-1: 0] kp_reg_held   ;
 wire signed [15+GAINBITS-1: 0] kp_mult       ;
 
 always @(posedge clk_i) begin
    if (rstn_i == 1'b0) begin
       kp_reg  <= {15+GAINBITS-PSR{1'b0}};
+      kp_reg_held <= {15+GAINBITS-PSR{1'b0}};
    end
    else begin
       kp_reg <= kp_mult[15+GAINBITS-1:PSR] ;
+      if (pause_p == 1'b0) begin
+         kp_reg_held <= kp_mult[15+GAINBITS-1:PSR];
+      end
    end
 end
 
-assign kp_mult = (pause_p==1'b1) ? $signed({15+GAINBITS{1'b0}}) : $signed(error) * $signed(set_kp);
+assign kp_mult = $signed(error) * $signed(set_kp);
+
+wire signed [15+GAINBITS-PSR-1: 0] kp_final;
+assign kp_final = (pause_p == 1'b1) ? kp_reg_held : kp_reg;
 
 //---------------------------------------------------------------------------------
 // Integrator - 2 cycles delay (but treat similar to proportional since it
@@ -233,21 +241,21 @@ assign kp_mult = (pause_p==1'b1) ? $signed({15+GAINBITS{1'b0}}) : $signed(error)
 //formerly
 //-localparam IBW = 64; //integrator bit-width. Over-represent the integral sum to record longterm drifts
 //-reg   [15+GAINBITS-1: 0] ki_mult  ;
-localparam IBW = ISR+16; //integrator bit-width. Over-represent the integral sum to record longterm drifts (overrepresented by 2 bits)
-reg signed  [16+GAINBITS-1: 0] ki_mult ;
+localparam IBW = ISR+14; //integrator bit-width. Over-represent the integral sum to record longterm drifts (overrepresented by 2 bits)
+reg signed  [16+GAINBITS-1: 0] ki_mult ; //16 comes from error
 wire signed [IBW  : 0] int_sum       ;
 reg signed  [IBW-1: 0] int_reg       ;
 wire signed [IBW-ISR-1: 0] int_shr   ;
 
 always @(posedge clk_i) begin
    if (rstn_i == 1'b0) begin
-      ki_mult  <= {15+GAINBITS{1'b0}};
+      ki_mult  <= {16+GAINBITS{1'b0}};
       int_reg  <= {IBW{1'b0}};
    end
    else begin
       ki_mult <= $signed(error) * $signed(set_ki) ;
       if (ival_write)
-         int_reg <= { {IBW-16-ISR{set_ival[16-1]}},set_ival[16-1:0],{ISR{1'b0}}};
+         int_reg <= { set_ival[13:0], {ISR{1'b0}} };
       else if (int_sum[IBW+1-1:IBW+1-2] == 2'b01) //normal positive saturation
          int_reg <= {1'b0,{IBW-1{1'b1}}};
       else if (int_sum[IBW+1-1:IBW+1-2] == 2'b10) // negative saturation
@@ -303,7 +311,7 @@ endgenerate
 // = max( 15+GAINBITS(24)-PSR(12) = 27, // from kp_reg
 //        IBW(48)-ISR(32) = 16,         // from int_shr
 //        39-DSR(10) = 29 but disabled)         // from kd_reg_s
-localparam MAXBW = 28; //17
+localparam MAXBW = GAINBITS+4; //17
 
 wire signed [   MAXBW-1: 0] pid_sum;
 reg signed  [   14-1: 0] pid_out;
@@ -322,7 +330,7 @@ always @(posedge clk_i) begin
    end
 end
 
-assign pid_sum = $signed(kp_reg) + $signed(int_shr) + $signed(kd_reg_s);
+assign pid_sum = $signed(kp_final) + $signed(int_shr) + $signed(kd_reg_s);
 
 
 generate 

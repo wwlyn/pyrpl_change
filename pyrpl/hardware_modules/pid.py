@@ -152,7 +152,7 @@ class IValAttribute(FloatProperty):
     Attribute for integrator value
     """
     def get_value(self, obj):
-        return float(obj._to_pyint(obj._read(0x100), bitlength=16))\
+        return float(obj._to_pyint(obj._read(0x100), bitlength=14))\
                / 2 ** 13
         # bitlength used to be 32 until 16/7/2016
         # still, FPGA has an asymmetric representation for reading and writing
@@ -161,7 +161,7 @@ class IValAttribute(FloatProperty):
     def set_value(self, obj, value):
         """set the value of the register holding the integrator's sum [volts]"""
         return obj._write(0x100, obj._from_pyint(
-            int(round(value * 2 ** 13)), bitlength=16))
+            int(round(value * 2 ** 13)), bitlength=14))
 
 
 class SignalLauncherPid(SignalLauncher):
@@ -254,9 +254,9 @@ class Pid(FilterModule):
 
     _DSR = 10  # Register(0x208)
 
-    _GAINBITS = 24  # Register(0x20C)
+    _GAINBITS = 28  # Register(0x20C)
 
-    ival = IValAttribute(min=-4, max=4, increment= 8. / 2**16, doc="Current "
+    ival = IValAttribute(min=-1, max=1, increment= 8. / 2**14, doc="Current "
             "value of the integrator memory (i.e. pid output voltage offset)")
 
     setpoint = FloatRegister(0x104, bits=14, norm= 2 **13,
