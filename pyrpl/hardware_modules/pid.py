@@ -140,7 +140,7 @@ do what they are supposed to.
 
 import numpy as np
 from qtpy import QtCore
-from ..attributes import FloatProperty, BoolRegister, FloatRegister, GainRegister, SelectRegister
+from ..attributes import FloatProperty, BoolRegister, FloatRegister, GainRegister, IntRegister, SelectRegister
 from .dsp import PauseRegister
 from ..modules import SignalLauncher
 from . import FilterModule
@@ -185,6 +185,33 @@ class SignalLauncherPid(SignalLauncher):
 
 
 class Pid(FilterModule):
+    def set_setpoint_array(self, array):
+        """
+        Write a sequence of setpoints (in Volts) to the FPGA using a single write per element
+        (index + value packed together), eliminating race conditions.
+        """
+        import numpy as np
+        import time
+
+        array = np.array(array)[:16]
+        print("Writing setpoint sequence:", array)
+
+        for i, v in enumerate(array):
+            wdata_val = int(round(v * 2**13))
+            # limit to -2**13 .. 2**13-1
+            if wdata_val > 2**13-1:
+                wdata_val = 2**13-1
+            elif wdata_val < -2**13:
+                wdata_val = -2**13
+            # convert to 14-bit two's complement unsigned
+            if wdata_val < 0:
+                wdata_val += 2**14
+
+            # pack index (4 bit) + value (14 bit) -> 18 bit 写入 32-bit 寄存器
+            packed = ((i & 0xF) << 14) | (wdata_val & 0x3FFF)
+
+            self._write(0x134, packed)  # single write: index+value
+            time.sleep(0.001)
     """
     A proportional/Integrator/Differential filter.
 
@@ -254,14 +281,33 @@ class Pid(FilterModule):
 
     _DSR = 10  # Register(0x208)
 
-    _GAINBITS = 28  # Register(0x20C)
+    _GAINBITS = 30  # Register(0x20C)
 
-    ival = IValAttribute(min=-1, max=1, increment= 8. / 2**14, doc="Current "
+    ival = IValAttribute(min=-1, max=1, increment= 2. / 2**14, doc="Current "
             "value of the integrator memory (i.e. pid output voltage offset)")
 
     setpoint = FloatRegister(0x104, bits=14, norm= 2 **13,
                              doc="pid setpoint [volts]")
 
+    # read the setpoint in sequence, can only be read
+    setpoint_in_sequence = FloatRegister(0x24C, bits=14, norm=2**13,
+                                          doc="pid setpoint in sequence [volts]")
+    sequence_wrap_flag = BoolRegister(0x244, doc="Wrap around the sequence")
+    use_setpoint_sequence = BoolRegister(0x130, doc="Enable setpoint sequence mode (True=sequence, False=normal)")
+
+    def reset_sequence_index(self):
+        """Reset the sequence index to 0 (software pulse)."""
+        self._write(0x140, 1)
+
+    # only from 0 to 15
+    setpoint_index = IntRegister(0x240, bits=4, doc="pid setpoint index")
+
+    # function to manually change setpoint, only when trigger is not on
+    def manually_change_setpoint(self):
+        """manually trigger setpoint sequence jump (pulse)"""
+        addr = 0x160 + self._number*4
+        self._write(addr, 1)
+    
     min_voltage = FloatRegister(0x124, bits=14, norm= 2 **13,
                                 doc="minimum output signal [volts]")
     max_voltage = FloatRegister(0x128, bits=14, norm= 2 **13,

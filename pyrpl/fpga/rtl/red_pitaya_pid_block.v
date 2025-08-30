@@ -86,6 +86,7 @@ module red_pitaya_pid_block #(
    output signed    [ 14-1: 0] dat_o           ,  // output data
    input signed     [ 14-1: 0] diff_dat_i      ,  // input data for differential mode
    output signed    [ 14-1: 0] diff_dat_o      ,  // input data for differential mode
+   input                 setpoint_trig_i     ,
 
    // communication with PS
    input      [ 16-1: 0] addr,
@@ -95,6 +96,65 @@ module red_pitaya_pid_block #(
    output reg [ 32-1: 0] rdata,
    input      [ 32-1: 0] wdata
 );
+
+//-----------------------------
+// Setpoint sequence with robust TTL edge detection
+reg [3:0] setpoint_array_write_index;
+reg use_setpoint_sequence; // 0=normal mode，1=sequence mode
+
+parameter SETPOINT_LEN = 16;
+parameter SETPOINT_WIDTH = 14;
+reg signed [SETPOINT_WIDTH-1:0] setpoint_array [0:SETPOINT_LEN-1];
+reg [4-1:0] setpoint_index;
+reg sequence_wrap_flag;
+
+// Synchronize TTL input to FPGA clock to avoid metastability
+reg setpoint_trig_sync0, setpoint_trig_sync1;
+reg setpoint_trig_sync_d;
+
+wire signed [SETPOINT_WIDTH-1:0] setpoint;
+assign setpoint = setpoint_array[setpoint_index];
+
+// Detect rising edge after synchronization
+wire setpoint_trig_rise = setpoint_trig_sync1 & ~setpoint_trig_sync_d;
+
+always @(posedge clk_i) begin
+    if (!rstn_i) begin
+        setpoint_index        <= 0;
+        sequence_wrap_flag    <= 0;
+        setpoint_trig_sync0   <= 0;
+        setpoint_trig_sync1   <= 0;
+        setpoint_trig_sync_d  <= 0;
+    end
+    else begin
+        // synchronize TTL input
+        setpoint_trig_sync0 <= setpoint_trig_i;
+        setpoint_trig_sync1 <= setpoint_trig_sync0;
+        setpoint_trig_sync_d <= setpoint_trig_sync1;
+
+        // handle reset of sequence
+        if (wen && addr==16'h140) begin
+            setpoint_index     <= 0;
+            sequence_wrap_flag <= 0;
+        end
+
+        // manually set index
+        if (wen && addr==16'h240) begin
+            setpoint_index <= wdata[4-1:0];
+        end
+
+        // advance on rising edge
+        if (setpoint_trig_rise) begin
+            if (setpoint_index < SETPOINT_LEN-1) begin
+                setpoint_index <= setpoint_index + 1;
+            end
+            else begin
+                setpoint_index     <= 0; // wrap around
+                sequence_wrap_flag <= 1; // finished one sequence
+            end
+        end
+    end
+end
 
 reg signed [ 14-1: 0] set_sp;   // set point
 reg signed [ 14-1: 0] set_ival;   // integral value to set
@@ -120,6 +180,7 @@ always @(posedge clk_i) begin
    if (rstn_i == 1'b0) begin
       set_sp <= 14'd0;
       set_ival <= 14'd0;
+      use_setpoint_sequence <= 1'b0;
       pause_pid_on_sync <= {3{1'b1}};  // by default, all gains are paused on sync signal
       enable_differential_mode <= 1'b0; // by default no differential mode
       set_kp <= {GAINBITS{1'b0}};
@@ -134,6 +195,7 @@ always @(posedge clk_i) begin
       if (wen) begin
          if (addr==16'h100)   set_ival <= wdata[14-1:0];
          if (addr==16'h104)   set_sp  <= wdata[14-1:0];
+         if (addr==16'h130)   use_setpoint_sequence <= wdata[0];
          if (addr==16'h108)   set_kp  <= wdata[GAINBITS-1:0];
          if (addr==16'h10C)   set_ki  <= wdata[GAINBITS-1:0];
          if (addr==16'h110)   set_kd  <= wdata[GAINBITS-1:0];
@@ -141,6 +203,10 @@ always @(posedge clk_i) begin
          if (addr==16'h124)   out_min  <= wdata;
          if (addr==16'h128)   out_max  <= wdata;
          if (addr==16'h12C)   {enable_differential_mode,pause_pid_on_sync} <= wdata[4-1:0];
+         if (addr==16'h134) begin
+            setpoint_array_write_index <= wdata[17:14];
+            setpoint_array[wdata[17:14]] <= wdata[13:0];
+         end
       end
       if (addr==16'h100 && wen)
          ival_write <= 1'b1;
@@ -148,22 +214,32 @@ always @(posedge clk_i) begin
          ival_write <= 1'b0;
 
 	  casez (addr)
-	     16'h100 : begin ack <= wen|ren; rdata <= int_shr; end
-	     16'h104 : begin ack <= wen|ren; rdata <= {{32-14{1'b0}},set_sp}; end
-	     16'h108 : begin ack <= wen|ren; rdata <= {{32-GAINBITS{1'b0}},set_kp}; end
-	     16'h10C : begin ack <= wen|ren; rdata <= {{32-GAINBITS{1'b0}},set_ki}; end
-	     16'h110 : begin ack <= wen|ren; rdata <= {{32-GAINBITS{1'b0}},set_kd}; end
-	     16'h120 : begin ack <= wen|ren; rdata <= set_filter; end
-	     16'h124 : begin ack <= wen|ren; rdata <= {{32-14{1'b0}},out_min}; end
-	     16'h128 : begin ack <= wen|ren; rdata <= {{32-14{1'b0}},out_max}; end
-	     16'h12C : begin ack <= wen|ren; rdata <= {{32-4{1'b0}},enable_differential_mode,pause_pid_on_sync}; end
-	     16'h200 : begin ack <= wen|ren; rdata <= PSR; end
-	     16'h204 : begin ack <= wen|ren; rdata <= ISR; end
-	     16'h208 : begin ack <= wen|ren; rdata <= DSR; end
-	     16'h20C : begin ack <= wen|ren; rdata <= GAINBITS; end
-	     16'h220 : begin ack <= wen|ren; rdata <= FILTERSTAGES; end
-	     16'h224 : begin ack <= wen|ren; rdata <= FILTERSHIFTBITS; end
-	     16'h228 : begin ack <= wen|ren; rdata <= FILTERMINBW; end
+         16'h100 : begin ack <= wen|ren; rdata <= int_shr; end
+         16'h104 : begin ack <= wen|ren; rdata <= {{32-14{1'b0}},set_sp}; end
+         16'h108 : begin ack <= wen|ren; rdata <= {{32-GAINBITS{1'b0}},set_kp}; end
+         16'h10C : begin ack <= wen|ren; rdata <= {{32-GAINBITS{1'b0}},set_ki}; end
+         16'h110 : begin ack <= wen|ren; rdata <= {{32-GAINBITS{1'b0}},set_kd}; end
+         16'h120 : begin ack <= wen|ren; rdata <= set_filter; end
+         16'h124 : begin ack <= wen|ren; rdata <= {{32-14{1'b0}},out_min}; end
+         16'h128 : begin ack <= wen|ren; rdata <= {{32-14{1'b0}},out_max}; end
+         16'h12C : begin ack <= wen|ren; rdata <= {{32-4{1'b0}},enable_differential_mode,pause_pid_on_sync}; end
+         16'h200 : begin ack <= wen|ren; rdata <= PSR; end
+         16'h204 : begin ack <= wen|ren; rdata <= ISR; end
+         16'h208 : begin ack <= wen|ren; rdata <= DSR; end
+         16'h20C : begin ack <= wen|ren; rdata <= GAINBITS; end
+         16'h220 : begin ack <= wen|ren; rdata <= FILTERSTAGES; end
+         16'h224 : begin ack <= wen|ren; rdata <= FILTERSHIFTBITS; end
+         16'h228 : begin ack <= wen|ren; rdata <= FILTERMINBW; end
+         16'h240 : begin ack <= wen|ren; rdata <= setpoint_index; end // Report current index
+         16'h244 : begin ack <= wen|ren; rdata <= sequence_wrap_flag; end // Report wrap status
+         16'h24C : begin ack <= wen|ren; rdata <= setpoint_array[setpoint_index]; end // Report current setpoint value
+         16'h130 : begin ack <= wen|ren; rdata <= use_setpoint_sequence; end
+         16'h134 : begin ack <= wen|ren; rdata <= 32'h0; end
+         16'h138 : begin
+            ack <= wen|ren;
+            rdata <= {{32-14{setpoint_array[setpoint_array_write_index][13]}},
+                     setpoint_array[setpoint_array_write_index]};
+         end
 	     
 	     default: begin ack <= wen|ren;  rdata <=  32'h0; end 
 	  endcase	     
@@ -202,7 +278,7 @@ always @(posedge clk_i) begin
       if (enable_differential_mode == 1'b1)
          error <= $signed(dat_i_filtered) - $signed(diff_dat_i) ;
       else
-         error <= $signed(dat_i_filtered) - $signed(set_sp) ;
+         error <= $signed(dat_i_filtered) - (use_setpoint_sequence ? $signed(setpoint) : $signed(set_sp));
    end
 end
 

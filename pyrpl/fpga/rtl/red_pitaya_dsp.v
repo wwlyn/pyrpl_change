@@ -153,6 +153,7 @@ reg [2-1:0] output_select [MODULES+EXTRAMODULES-1:0];
 
 // syncronization register to trigger simultaneous action of different dsp modules
 reg [MODULES-1:0] sync;
+reg [2:0] manual_change; // manually change the setpoint in the sequence
 
 // bus read data of individual modules (only needed for 'real' modules)
 wire [ 32-1: 0] module_rdata [MODULES-1:0];  
@@ -286,12 +287,20 @@ always @(posedge clk_i) begin
       input_select [PWM1] <= NONE;
       
       sync <= {MODULES{1'b1}} ;  // all modules on by default
+      manual_change <= 3'b0; // 
    end
    else begin
+      manual_change <= 3'b0;
       if (sys_wen) begin
          if (sys_addr[16-1:0]==16'h00)     input_select[sys_addr[16+LOG_MODULES-1:16]] <= sys_wdata[ LOG_MODULES-1:0];
          if (sys_addr[16-1:0]==16'h04)    output_select[sys_addr[16+LOG_MODULES-1:16]] <= sys_wdata[ 2-1:0];
          if (sys_addr[16-1:0]==16'h0C)                                            sync <= sys_wdata[MODULES-1:0];
+         // manually change the setpoint in the sequence
+         for (i = 0; i < 3; i = i + 1) begin
+            if (sys_addr[16-1:0] == (16'h160 + (i << 2))) begin
+               manual_change[i] <= 1'b1;
+            end
+         end
       end
    end
 end
@@ -341,6 +350,7 @@ generate for (j = 0; j < 3; j = j+1) begin
      .dat_o        (  output_direct[j]),  // output data
 	 .diff_dat_i   (  diff_input_signal[j] ),  // input data for differential mode
 	 .diff_dat_o   (  diff_output_signal[j] ),  // output data for differential mode
+    .setpoint_trig_i ( trig_p_i[j+3] | manual_change[j] ), // DIOP3/4/5 control PID0/1/2 setpoint sequence jump
 
 	 //communincation with PS
 	 .addr ( sys_addr[16-1:0] ),
