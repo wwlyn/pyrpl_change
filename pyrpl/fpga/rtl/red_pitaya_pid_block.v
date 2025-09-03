@@ -143,6 +143,11 @@ always @(posedge clk_i) begin
             setpoint_index <= wdata[4-1:0];
         end
 
+        // new sequence
+        if (wen && addr==16'h134) begin
+            sequence_wrap_flag <= 0;
+        end
+
         // advance on rising edge
         if (setpoint_trig_rise) begin
             if (setpoint_index < SETPOINT_LEN-1) begin
@@ -230,14 +235,14 @@ always @(posedge clk_i) begin
          16'h220 : begin ack <= wen|ren; rdata <= FILTERSTAGES; end
          16'h224 : begin ack <= wen|ren; rdata <= FILTERSHIFTBITS; end
          16'h228 : begin ack <= wen|ren; rdata <= FILTERMINBW; end
-         16'h240 : begin ack <= wen|ren; rdata <= setpoint_index; end // Report current index
-         16'h244 : begin ack <= wen|ren; rdata <= sequence_wrap_flag; end // Report wrap status
-         16'h24C : begin ack <= wen|ren; rdata <= setpoint_array[setpoint_index]; end // Report current setpoint value
-         16'h130 : begin ack <= wen|ren; rdata <= use_setpoint_sequence; end
+         16'h240 : begin ack <= wen|ren; rdata <= {{32-4{1'b0}}, setpoint_index}; end // Report current index
+         16'h244 : begin ack <= wen|ren; rdata <= {{32-1{1'b0}}, sequence_wrap_flag}; end // Report wrap status
+         16'h24C : begin ack <= wen|ren; rdata <= {{32-14{1'b0}}, setpoint_array[setpoint_index]}; end // Report current setpoint value with zero extension (consistent with setpoint register)
+         16'h130 : begin ack <= wen|ren; rdata <= {{32-1{1'b0}}, use_setpoint_sequence}; end
          16'h134 : begin ack <= wen|ren; rdata <= 32'h0; end
          16'h138 : begin
             ack <= wen|ren;
-            rdata <= {{32-14{setpoint_array[setpoint_array_write_index][13]}},
+            rdata <= {{32-14{1'b0}},
                      setpoint_array[setpoint_array_write_index]};
          end
 	     
