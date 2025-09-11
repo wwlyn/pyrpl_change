@@ -108,7 +108,7 @@ class ScopeWidget(AcquisitionModuleWidget):
         self.layout_misc.addWidget(aws['average'])
         self.attribute_layout.addLayout(self.layout_misc)
 
-        self.win = pg.GraphicsWindow(title="Scope")
+        self.win = pg.GraphicsLayoutWidget(title="Scope")
         self.plot_item = self.win.addPlot(title="Scope")
         self.plot_item.showGrid(y=True, alpha=1.)
         self.curves = [self.plot_item.plot(pen=(QtGui.QColor(color).red(),

@@ -65,9 +65,9 @@ class NaWidget(AcquisitionModuleWidget):
         #self.setLayout(self.main_layout)  # already the case
         self.setWindowTitle("NetworkAnalyzer")
 
-        self.win = pg.GraphicsWindow(title="Magnitude")
+        self.win = pg.GraphicsLayoutWidget(title="Magnitude")
 
-        self.win_phase = pg.GraphicsWindow(title="Phase")
+        self.win_phase = pg.GraphicsLayoutWidget(title="Phase")
         self.plot_item = self.win.addPlot(row=0, col=0, title="Magnitude (dB)")
         self.plot_item_phase = self.win_phase.addPlot(row=1, col=0,
                                                       title="Phase (deg)")
@@ -295,7 +295,7 @@ class NaWidget(AcquisitionModuleWidget):
     #    self.module.stop()
 
 
-class MyGraphicsWindow(pg.GraphicsWindow):
+class MyGraphicsWindow(pg.GraphicsLayoutWidget):
     def __init__(self, title, parent_widget):
         super(MyGraphicsWindow, self).__init__(title)
         self.parent_widget = parent_widget

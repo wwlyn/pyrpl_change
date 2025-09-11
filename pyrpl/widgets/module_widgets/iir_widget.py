@@ -9,7 +9,7 @@ import numpy as np
 import sys
 from ... import APP
 
-class MyGraphicsWindow(pg.GraphicsWindow):
+class MyGraphicsWindow(pg.GraphicsLayoutWidget):
     def __init__(self, title, parent):
         super(MyGraphicsWindow, self).__init__(title)
         self.parent = parent
