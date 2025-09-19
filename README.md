@@ -11,13 +11,13 @@
   - [FPGA Code Modification using PyRPL](#fpga-code-modification-using-pyrpl)
     - [Workflow](#workflow)
     - [Implementation Tips](#implementation-tips)
-  - [Example: Raman Light Intensity Locking \& Digital Sequence](#example-raman-light-intensity-locking--digital-sequence)
+  - [PID Modification: Raman Light Intensity Locking \& Digital Sequence](#pid-modification-raman-light-intensity-locking--digital-sequence)
     - [Goal](#goal)
     - [How to use PyRPL's PID module](#how-to-use-pyrpls-pid-module)
-    - [Limit on $K\_i$: Improve the bandwidth of PID](#limit-on-k_i-improve-the-bandwidth-of-pid)
-    - [Integral range: Reduce the useless integration time](#integral-range-reduce-the-useless-integration-time)
-    - [Output when hold: Keep the last output when hold](#output-when-hold-keep-the-last-output-when-hold)
-    - [Digital sequence mode: Use external trigger to change digital setpoint](#digital-sequence-mode-use-external-trigger-to-change-digital-setpoint)
+    - [Modification 1: Improve the bandwidth of PID](#modification-1-improve-the-bandwidth-of-pid)
+    - [Modification 2: Reduce the useless integration time](#modification-2-reduce-the-useless-integration-time)
+    - [Modification 3: Keep the last output when hold](#modification-3-keep-the-last-output-when-hold)
+    - [Modification 4: Use external trigger to change digital setpoint](#modification-4-use-external-trigger-to-change-digital-setpoint)
     - [External Trigger Configuration](#external-trigger-configuration)
     - [Labscript](#labscript)
       - [Blacs](#blacs)
@@ -145,7 +145,7 @@ use_setpoint_sequence = BoolRegister(0x130, doc="Enable sequence mode")
 
 **Using AI recommended**: We can easily understand FPGA code using **built-in** AI models like Copilot in VSCode. Simply ask it to explain the code structure, data flow, registers and their bitwidths... It's very convenient!
 
-## Example: Raman Light Intensity Locking & Digital Sequence
+## PID Modification: Raman Light Intensity Locking & Digital Sequence
 
 More functions to see in [the official tutorial of PyRPL](https://github.com/pyrpl-fpga/pyrpl/blob/main/docs/example-notebooks/tutorial.ipynb).
         
@@ -214,7 +214,7 @@ pid.pause_gains = "pi"
 pid.paused = False
 ```
 
-### Limit on $K_i$: Improve the bandwidth of PID
+### Modification 1: Improve the bandwidth of PID
 
 **Problem:** PyRPL limits $K_i$ to 38kHz (unity gain frequency when $K_p, K_d=0$), restricting PID bandwidth despite FPGA's 8ns clock capability.
 
@@ -247,7 +247,7 @@ When we set a value higher than limitation, we can see on the terminal:
 WARNING:pyrpl.modules:Requested gain for pid0.i is outside the bounds allowed by the hardware. Desired gain of 1.0e+12 is capped to 2.5e+06. 
 ```
 
-### Integral range: Reduce the useless integration time 
+### Modification 2: Reduce the useless integration time 
 
 **Problem:** Integral range [-4V,+4V] exceeds output limits [-1V,+1V], causing delayed response in hold/unhold sequences.
 
@@ -271,7 +271,7 @@ WARNING:pyrpl.modules:Requested gain for pid0.i is outside the bounds allowed by
   <figcaption><strong>With integral:</strong> Yellow is setponit and blue is output. The integral value will saturate between 2 limits when the (input - setpoint) changes between positive value and negative value. The saturation recovery (-4V → -1V) causes 18μs delay.</figcaption>
 </figure>
 
-### Output when hold: Keep the last output when hold
+### Modification 3: Keep the last output when hold
 
 **Problem:** PyRPL's hold function outputs only the integral term, setting proportional term to zero instead of maintaining the complete last output.
 
@@ -281,7 +281,7 @@ WARNING:pyrpl.modules:Requested gain for pid0.i is outside the bounds allowed by
 
 **Solution:** Modified FPGA code to preserve total PID output during hold.
 
-### Digital sequence mode: Use external trigger to change digital setpoint
+### Modification 4: Use external trigger to change digital setpoint
 
 **Why digital over analog setpoint sequences?**
 
