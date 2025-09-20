@@ -1,7 +1,7 @@
 
 - [FPGA PID Documentation](#fpga-pid-documentation)
   - [Prerequisites](#prerequisites)
-    - [Quick Start](#quick-start)
+    - [Quick Start with RedPitaya](#quick-start-with-redpitaya)
     - [Static IP Configuration](#static-ip-configuration)
     - [Input Modes: HV vs LV](#input-modes-hv-vs-lv)
     - [Noise Performance](#noise-performance)
@@ -30,11 +30,11 @@
 
 **Author:** Wanlin Wang (wwlyn@mit.edu, wwlyn@outlook.com)
 
-This documentation covers FPGA code modification using PyRPL for RedPitaya, eliminating the need to build FPGA code from scratch or even open Vivado. This enables easy implementation of advanced feedback systems (but note the [hardware calibration limitations](#calibration-limitations)). You can also directly [use my modified PyRPL package](#install-my-modified-pyrpl).
+This documentation begins with the tutorial for RedPitaya, and then covers FPGA code modification using PyRPL for RedPitaya, eliminating the need to build FPGA code from scratch or even open Vivado. This enables easy implementation of advanced feedback systems (but note the [hardware calibration limitations](#calibration-limitations)). You can also directly [use my modified PyRPL package](#install-my-modified-pyrpl).
 
 ## Prerequisites
 
-### Quick Start
+### Quick Start with RedPitaya
 - [RedPitaya Documentation](https://redpitaya.com/documentation/)
 
 ### Static IP Configuration
