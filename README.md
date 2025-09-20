@@ -15,7 +15,7 @@
     - [Goal](#goal)
     - [How to use PyRPL's PID module](#how-to-use-pyrpls-pid-module)
     - [Modification 1: Improve the bandwidth of PID](#modification-1-improve-the-bandwidth-of-pid)
-    - [Modification 2: Hold function](#modification-2-hold-function)
+    - [Modification 2: Hold using external trigger](#modification-2-hold-using-external-trigger)
     - [Modification 3: Keep the last output when hold](#modification-3-keep-the-last-output-when-hold)
     - [Modification 4: Use external trigger to change digital setpoint](#modification-4-use-external-trigger-to-change-digital-setpoint)
     - [External Trigger Configuration](#external-trigger-configuration)
@@ -247,7 +247,7 @@ When we set a value higher than limitation, we can see on the terminal:
 WARNING:pyrpl.modules:Requested gain for pid0.i is outside the bounds allowed by the hardware. Desired gain of 1.0e+12 is capped to 2.5e+06. 
 ```
 
-### Modification 2: Hold function 
+### Modification 2: Hold using external trigger
 
 **Problem:** Integral range [-4V,+4V] exceeds output limits [-1V,+1V], causing delayed response in hold/unhold sequences.
 
