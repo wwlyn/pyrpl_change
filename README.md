@@ -7,7 +7,7 @@
     - [Noise Performance](#noise-performance)
     - [PyRPL Installation](#pyrpl-installation)
       - [Install my modified PyRPL](#install-my-modified-pyrpl)
-      - [Calibration Limitations](#calibration-limitations)
+      - [(Resolved) Calibration issue](#resolved-calibration-issue)
   - [FPGA Code Modification using PyRPL](#fpga-code-modification-using-pyrpl)
     - [Workflow](#workflow)
     - [Implementation Tips](#implementation-tips)
@@ -30,7 +30,7 @@
 
 **Author:** Wanlin Wang (wwlyn@mit.edu, wwlyn@outlook.com)
 
-This documentation begins with the tutorial for RedPitaya, and then covers FPGA code modification using PyRPL for RedPitaya, eliminating the need to build FPGA code from scratch or even open Vivado. This enables easy implementation of advanced feedback systems (but note the [hardware calibration limitations](#calibration-limitations)). You can also directly [use my modified PyRPL package](#install-my-modified-pyrpl).
+This documentation begins with the tutorial for RedPitaya, and then covers FPGA code modification using PyRPL for RedPitaya, eliminating the need to build FPGA code from scratch or even open Vivado. This enables easy implementation of advanced feedback systems (but note the [calibration issue](#calibration-limitations)). You can also directly [use my modified PyRPL package](#install-my-modified-pyrpl).
 
 ## Prerequisites
 
@@ -91,13 +91,13 @@ pip install pyqt5
 I have already fixed the pyqtgraph conflict in my code, and we need to manually add some lines before importing pyrpl to fix numpy compatibility in 
 [Fix the package conflict without downgrading.](#fix-the-package-conflict-without-downgrading-in-python-39)
 
-#### Calibration Limitations
+#### (Resolved) Calibration issue
 
 PyRPL cannot read RedPitaya's calibration data, causing ADC/DAC offsets. For PID applications, this is usually acceptable since the goal is Error=0.
 
-- Digital setpoint: Manually offset calibration needed for precise physical values, see [the method in the notebook](ManualCalibration.ipynb).
-- Analog setpoint: No calibration needed because the difference between 2 inputs matters, and finally it will go to 0.
-- Some fancy feedbacks which need precise value of raw data: May require fixing this issue from hardware!
+- **Digital setpoint**: Manually offset calibration needed for precise physical values, see [the method in the notebook](ManualCalibration.ipynb).
+- **Analog setpoint**: No calibration needed because the difference between 2 inputs matters, and finally it will go to 0.
+- **Advanced feedback systems**: Since ADC/DAC are linear, we can track the complete FPGA data flow and apply separate input/output conversions (requiring pre-fitted ADC/DAC linear dependencies, it's doable because we can know the specific register value, and we need two extra multiplications + additions in the data flow), or incorporate these linear dependencies into our fitting algorithms.
 
 **References:** [Forum-RedPitaya](https://forum.redpitaya.com/viewtopic.php?t=25268) | [Issue #347](https://github.com/pyrpl-fpga/pyrpl/issues/347) | [Issue #398](https://github.com/pyrpl-fpga/pyrpl/issues/398)
 
