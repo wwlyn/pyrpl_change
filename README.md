@@ -40,6 +40,7 @@ This documentation begins with the tutorial for RedPitaya, and then covers FPGA 
 ### Static IP Configuration
 
 Set a static IP to avoid random IP changes on MIT SECURE network:
+- Connect to the Red Pitaya main page
 - Navigate to System → Network Manager → Static IP
 - Configure your preferred IP address
 
