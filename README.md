@@ -30,7 +30,7 @@
 
 **Author:** Wanlin Wang (wwlyn@mit.edu, wwlyn@outlook.com)
 
-This documentation begins with the tutorial for RedPitaya, and then covers FPGA code modification using PyRPL for RedPitaya, eliminating the need to build FPGA code from scratch or even open Vivado. This enables easy implementation of advanced feedback systems (but note the [calibration issue](#calibration-limitations)). You can also directly [use my modified PyRPL package](#install-my-modified-pyrpl).
+This documentation begins with the tutorial for RedPitaya, and then covers FPGA code modification using PyRPL for RedPitaya, eliminating the need to build FPGA code from scratch or even open Vivado. This enables easy implementation of advanced feedback systems because we can just code the calculation logic and skip the difficulty of coding the connection and wiring etc. (but note the [calibration issue](#Resolved-calibration-issue)). You can also directly [use my modified PyRPL package for PID usage](#install-my-modified-pyrpl).
 
 ## Prerequisites
 
