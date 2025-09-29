@@ -250,11 +250,11 @@ WARNING:pyrpl.modules:Requested gain for pid0.i is outside the bounds allowed by
 
 ### Modification 2: Hold using external trigger
 
-**Problem:** Integral range [-4V,+4V] exceeds output limits [-1V,+1V], causing delayed response in hold/unhold sequences.
+**Problem:** When unhold, we want PID lock to another setpoint, but it cannot function well.
 
-**Issue:** When changing setpoint during hold, integral accumulates beyond output range within delay time, requiring long integration time to return to useful range when unhold.
+**Root Cause:** Integral range [-4V,+4V] exceeds output limits [-1V,+1V], causing delayed response in hold/unhold sequences. When changing setpoint during hold, integral accumulates beyond output range within delay time, requiring long integration time to return to useful range when unhold.
 
-**Impact:** External trigger sequences malfunction due to excessive integration delays.
+**Solution:**  Change the integral range to [-1V,+1V] while keep the caculation resolution. 
 
 | Test Condition | Response Time | Description |
 |----------------|---------------|-------------|
