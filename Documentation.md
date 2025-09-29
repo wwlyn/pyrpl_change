@@ -65,6 +65,8 @@ Set a static IP to avoid random IP changes on MIT SECURE network:
 
 I use the branch `max_hold_no_iir_improvement` with lock/hold function:
 ```bash
+conda create --name my-env python=3.9
+conda activate my-env
 git clone -b max_hold_no_iir_improvement https://github.com/pyrpl-fpga/pyrpl.git
 cd the_folder_name # Where setup.py exists
 # conda install netifaces # I use miniconda to manage virtual environment
@@ -82,11 +84,12 @@ pip install pyqt5
 If you only want to use PyRPL that I have modified, please follow this to download PyRPL package:
 
 ```bash
+conda create --name my-env python=3.9
+conda activate my-env
 git clone -b max_hold_no_iir_improvement https://github.com/wwlyn/pyrpl_change.git
 cd the_folder_name # Where setup.py exists
 # conda install netifaces
 pip install .  # Use virtual environment recommended
-pip install pyqt5
 # Fix any import errors according to error messages when importing PyRPL
 ```
 I have already fixed the pyqtgraph conflict in my code, and we need to manually add some lines before importing pyrpl to fix numpy compatibility in 

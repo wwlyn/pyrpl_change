@@ -19,7 +19,7 @@ import sys
 SETUP_PATH = os.path.dirname(os.path.abspath(__file__))
 
 def read(fname):
-    return open(os.path.join(SETUP_PATH, fname)).read()
+    return open(os.path.join(SETUP_PATH, fname), encoding='utf-8').read()
 
 # Version info -- read without importing
 _locals = {}
@@ -37,7 +37,7 @@ version = _locals['__version__']
 #         if '#' not in line and line:
 #             requirements.append(line.strip())
 requirements = ['scp',
-                #'matplotlib', # optional requirementm, not needed for core
+                'matplotlib', # optional requirementm, not needed for core
                 'scipy>=1.2',
                 'pyyaml',
                 #'ruamel.yaml' # temporarily disabled
@@ -46,7 +46,7 @@ requirements = ['scp',
                 'numpy>=1.9',
                 'paramiko>=2.0',
                 'nose>=1.0',
-                #'PyQt5',  # cannot be installed with pip
+                'pyqt5',  # cannot be installed with pip
                 'qtpy',
                 'nbconvert',
                 'jupyter-client',
