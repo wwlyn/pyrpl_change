@@ -149,6 +149,11 @@ use_setpoint_sequence = BoolRegister(0x130, doc="Enable sequence mode")
 
 **Using AI recommended**: We can easily understand FPGA code using **built-in** AI models like Copilot in VSCode. Simply ask it to explain the code structure, data flow, registers and their bitwidths... It's very convenient!
 
+<figure>
+  <img src="figs/AI.png">
+  <figcaption>I use Copilot to learn FPGA.</figcaption>
+</figure>
+
 ## PID Modification: Raman Light Intensity Locking & Digital Sequence
 
 More functions to see in [the official tutorial of PyRPL](https://github.com/pyrpl-fpga/pyrpl/blob/main/docs/example-notebooks/tutorial.ipynb).
