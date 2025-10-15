@@ -97,13 +97,26 @@ I have already fixed the pyqtgraph conflict in my code, and we need to manually 
 
 #### (Resolved) Calibration issue
 
-PyRPL cannot read RedPitaya's calibration data, causing ADC/DAC offsets. For PID applications, this is usually acceptable since the goal is Error=0.
-
-- **Digital setpoint**: Manually offset calibration needed for precise physical values, see [the method in the notebook](ManualCalibration.ipynb).
-- **Analog setpoint**: No calibration needed because the difference between 2 inputs matters, and finally it will go to 0.
-- **Advanced feedback systems**: Since ADC/DAC are linear, we can track the complete FPGA data flow and apply separate input/output conversions (requiring pre-fitted ADC/DAC linear dependencies, it's doable because we can know the specific register value, and we need two extra multiplications + additions in the data flow), or incorporate these linear dependencies into our fitting algorithms.
+**Observed phenomenon:** The actual physical voltage output doesn't match the internal digital values. For example, digital 0.1 corresponds to ~0.11V in reality, digital 0.2 corresponds to ~0.22V in reality.
 
 **References:** [Forum-RedPitaya](https://forum.redpitaya.com/viewtopic.php?t=25268) | [Issue #347](https://github.com/pyrpl-fpga/pyrpl/issues/347) | [Issue #398](https://github.com/pyrpl-fpga/pyrpl/issues/398)
+
+**Offset Analysis:** Based on experimental observations, the calibration offset appears to be a common ADC/DAC issue that won't cause significant drift over time (existing drift is usually due to temperature changes):
+
+1. **Consistent offset**: Multiple tests show the same offset value at given voltages (though I didn't do highly precise measurements), indicating stable behavior
+2. **Linear dependency**: The offset scales linearly with voltage (e.g., 0.1V→0.11, 0.2V→0.22), characteristic of reference voltage differences in ADC/DAC systems
+
+**Why linear offset occurs:** ADC/DAC conversion depends on reference voltage ratios. If PyRPL uses a different reference voltage assumption than RedPitaya's actual hardware calibration, the conversion becomes: `Digital_Value = (Input_Voltage / Assumed_Vref) × Full_Scale`, while the actual relationship is `Digital_Value = (Input_Voltage / Actual_Vref) × Full_Scale`. This creates a constant scaling factor `(Actual_Vref / Assumed_Vref)`, resulting in linear offset proportional to input voltage. I suspect RedPitaya units may not have proper reference voltage calibration from factory.
+
+This linear behavior strongly suggests the offset originates from reference voltage differences rather than random drift, making it predictable and stable for long-term use.
+
+For PID applications, this is usually acceptable since the goal is Error=0.
+
+- **Digital setpoint**: Manual offset calibration in software is needed for precise physical values, see [the method in the notebook](ManualCalibration.ipynb). This won't affect speed because it only applies when setting the setpoint.
+- **Analog setpoint**: No calibration needed because the difference between 2 inputs matters, and it will eventually converge to 0.
+- **Advanced feedback systems**: Since ADC/DAC are linear, we can track the complete FPGA data flow and apply separate input/output conversions (requiring pre-fitted ADC/DAC linear dependencies - this is doable because we can access the specific register values, requiring two extra multiplications + additions in the data flow, one for ADC input, one for DAC output), or incorporate these linear dependencies into our fitting algorithms. FPGA can perform such calculations very fast.
+
+
 
 ## FPGA Code Modification using PyRPL
 
@@ -138,6 +151,13 @@ PyRPL cannot read RedPitaya's calibration data, causing ADC/DAC offsets. For PID
    - Run simulation to check register values
 
 ### Implementation Tips
+
+<figure>
+  <img src="figs/Structure.png">
+  <figcaption><strong>FPGA PID Structure:</strong> <code>pid.py</code> defines software-to-hardware communication by mapping values to specific addresses. These addresses correspond to registers in <code>red_pitaya_pid_block.v</code> for calculation logic. Reading follows the same mechanism. <code>red_pitaya_dsp.v</code> connects external RedPitaya pins to registers, then inputs these register values to <code>red_pitaya_pid_block.v</code>, enabling external triggers to modify register values and influence the PID calculation logic.</figcaption>
+</figure>
+
+**Custom Feedback Systems:** Replace PID calculations in `red_pitaya_pid_block.v` with custom logic. Add/modify registers and triggers as needed. PyRPL handles most FPGA infrastructure, letting you focus primarily on algorithm development. (Although it may be still called `pid` in your code ;)
 
 **Basic Register Classes:** PyRPL provides pre-built register classes for common data types, like float, bool etc.:
 ```python
